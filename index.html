@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ДЗ 3 — Сложение и вычитание дробей</title>
+  <link rel="stylesheet" href="https://dmitrydruzhkovv-arch.github.io/di-brand-kit/brand-kit.css">
+  <style>
+    html { scroll-behavior: smooth; }
+    [hidden] { display: none !important; }
+
+    /* ─── Старт-обложка ─── */
+    .cover { text-align: center; padding: 38px 6px 12px; animation: lk-in .4s ease; }
+    .cover .lk-kicker { justify-content: center; }
+    .cover .lk-lead { max-width: 430px; margin-left: auto; margin-right: auto; }
+    .cover-meta {
+      font-family: var(--lk-mono); font-size: 13px; color: var(--lk-muted);
+      letter-spacing: .04em; margin: 18px 0 24px;
+    }
+    .cover-btn { min-width: 210px; }
+
+    /* ─── Шапка: прогресс + комбо ─── */
+    .hw-header {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(10, 6, 16, 0.92);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--lk-line); padding: 11px 18px;
+    }
+    .hw-header-inner { max-width: 560px; margin: 0 auto; display: flex; align-items: center; gap: 14px; }
+    .hw-prog-label {
+      font-family: var(--lk-mono); font-size: 12px; font-weight: 700;
+      color: var(--lk-muted); white-space: nowrap; letter-spacing: .08em;
+    }
+    .hw-combo {
+      font-family: var(--lk-mono); font-size: 12px; font-weight: 800;
+      white-space: nowrap; color: var(--lk-violet); opacity: 0; transition: opacity .25s;
+    }
+    .hw-combo.show { opacity: 1; }
+
+    /* ─── Карточка задания ─── */
+    .task-card { margin-bottom: 18px; animation: lk-in .35s ease; }
+    .task-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .task-label-wrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .task-label {
+      font-family: var(--lk-mono); font-size: 12px; font-weight: 700;
+      letter-spacing: .1em; text-transform: uppercase; color: var(--lk-violet);
+    }
+    .task-diff { font-size: 17px; line-height: 1; }
+    .task-block {
+      display: inline-block; font-family: var(--lk-mono); font-size: 10px; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase; color: var(--lk-muted);
+      border: 1px solid var(--lk-line); border-radius: 999px; padding: 3px 9px; margin-bottom: 12px;
+    }
+    .task-intro { font-size: 15px; line-height: 1.6; color: var(--lk-muted); margin: 0 0 16px; }
+
+    /* ─── Кнопки управления ─── */
+    .check-btn { width: 100%; margin-top: 18px; }
+    .check-btn:disabled { opacity: .38; cursor: default; transform: none !important; box-shadow: none !important; }
+    @keyframes btn-shake {
+      0%,100%{transform:translateX(0)} 20%{transform:translateX(-5px)} 40%{transform:translateX(5px)}
+      60%{transform:translateX(-4px)} 80%{transform:translateX(4px)}
+    }
+    .check-btn.shake { animation: btn-shake .35s ease; }
+    .next-btn { width: 100%; margin-top: 12px; }
+
+    /* ─── Разбор ─── */
+    .task-feedback {
+      display: none; margin-top: 14px; padding: 14px 16px; border-radius: var(--lk-r-xl);
+      background: rgba(79, 70, 229, .09); border: 1px solid rgba(79, 70, 229, .22);
+      font-size: 14px; line-height: 1.65;
+    }
+    .task-feedback.show { display: block; animation: lk-in .35s ease; }
+    .fb-label {
+      font-family: var(--lk-mono); font-size: 10px; font-weight: 700; letter-spacing: .16em;
+      text-transform: uppercase; color: var(--lk-indigo); margin-bottom: 9px;
+    }
+    .fb-p { margin: 0 0 9px; } .fb-p:last-child { margin-bottom: 0; }
+
+    /* ─── Дроби ─── */
+    .frac {
+      display: inline-flex; flex-direction: column; align-items: center;
+      font-family: var(--lk-mono); vertical-align: middle; line-height: 1.1;
+    }
+    .frac .fn { border-bottom: 1.5px solid currentColor; padding: 0 5px 2px; font-size: .85em; }
+    .frac .fd { padding: 2px 5px 0; font-size: .85em; }
+    .mixed-num { display: inline-flex; align-items: center; gap: 4px; font-family: var(--lk-mono); vertical-align: middle; }
+    /* знак операции в выражении: по центру высоты дроби + воздух по бокам */
+    .ex-op { display: inline-block; margin: 0 7px; vertical-align: middle; color: var(--lk-muted); font-weight: 700; }
+
+    /* ─── З1: отметь все верные (чекбоксы) ─── */
+    .ms-item {
+      display: flex; align-items: center; gap: 12px; padding: 13px 15px;
+      background: var(--lk-surface); border: 1.5px solid var(--lk-line);
+      border-radius: var(--lk-r-lg); margin-bottom: 9px; cursor: pointer;
+      transition: border-color .2s, background .2s;
+    }
+    .ms-item:not(.is-locked):hover { border-color: var(--lk-indigo); }
+    .ms-item.checked { border-color: var(--lk-violet); background: rgba(168,85,247,.12); }
+    .ms-item.is-correct { border-color: var(--lk-ok)  !important; background: rgba(52,211,153,.10) !important; }
+    .ms-item.is-wrong   { border-color: var(--lk-bad) !important; background: rgba(244,63,94,.10) !important; }
+    .ms-item.is-locked { cursor: default; }
+    .ms-box {
+      flex: 0 0 24px; width: 24px; height: 24px; border-radius: 7px;
+      border: 2px solid var(--lk-line); display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 900; color: transparent; transition: all .15s;
+    }
+    .ms-item.checked .ms-box { border-color: var(--lk-violet); background: var(--lk-violet); color: #fff; }
+    .ms-item.is-correct .ms-box { border-color: var(--lk-ok); background: var(--lk-ok); color:#06281d; }
+    .ms-item.is-wrong .ms-box   { border-color: var(--lk-bad); background: var(--lk-bad); color:#fff; }
+    .ms-text { font-size: 15px; line-height: 1.55; }
+
+    /* ─── З2: вписать числитель (равенство) ─── */
+    .fn-row {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 14px 14px; margin-bottom: 9px;
+      background: var(--lk-surface); border: 1.5px solid var(--lk-line);
+      border-radius: var(--lk-r-lg); transition: border-color .25s, background .25s; font-size: 21px;
+    }
+    .fn-row.is-correct { border-color: var(--lk-ok); background: rgba(52,211,153,.08); }
+    .fn-row.is-wrong   { border-color: var(--lk-bad); background: rgba(244,63,94,.08); }
+    .fn-eq { color: var(--lk-muted); }
+    .fn-hint { font-family: var(--lk-mono); font-size: 12px; color: var(--lk-muted); margin-left: auto; }
+
+    /* ─── Поля ввода (числовые) ─── */
+    .input-field {
+      width: 50px; height: 50px; text-align: center;
+      font-family: var(--lk-mono); font-size: 20px; font-weight: 700;
+      background: rgba(255,255,255,.05); border: 1.5px solid var(--lk-line);
+      border-radius: var(--lk-r-md); color: var(--lk-ink); outline: none; -moz-appearance: textfield;
+    }
+    .input-field::-webkit-inner-spin-button, .input-field::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .input-field:focus { border-color: var(--lk-violet); }
+    .input-field[disabled] { opacity: .65; }
+    .input-frac-col { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; }
+    .input-num-wrap { border-bottom: 1.5px solid var(--lk-muted); padding-bottom: 3px; margin-bottom: 3px; }
+    .input-den { font-family: var(--lk-mono); font-size: 17px; font-weight: 700; color: var(--lk-muted); }
+
+    /* ─── З5/З6: ввод смешанного [целое][чис]/[зн] ─── */
+    .im-row {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 14px 14px; margin-bottom: 9px;
+      background: var(--lk-surface); border: 1.5px solid var(--lk-line);
+      border-radius: var(--lk-r-lg); transition: border-color .25s, background .25s;
+    }
+    .im-row.is-correct { border-color: var(--lk-ok); background: rgba(52,211,153,.08); }
+    .im-row.is-wrong   { border-color: var(--lk-bad); background: rgba(244,63,94,.08); }
+    .im-expr { font-size: 21px; }
+    .im-arrow { color: var(--lk-muted); font-size: 16px; }
+    .im-mixed { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+
+    /* ─── З8: ввод свободного ответа (строка) ─── */
+    .ia-row {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 14px 14px; margin-bottom: 9px;
+      background: var(--lk-surface); border: 1.5px solid var(--lk-line);
+      border-radius: var(--lk-r-lg); transition: border-color .25s, background .25s;
+    }
+    .ia-row.is-correct { border-color: var(--lk-ok); background: rgba(52,211,153,.08); }
+    .ia-row.is-wrong   { border-color: var(--lk-bad); background: rgba(244,63,94,.08); }
+    .ia-expr { font-size: 21px; }
+    .ia-field {
+      margin-left: auto; width: 108px; height: 48px; text-align: center;
+      font-family: var(--lk-mono); font-size: 18px; font-weight: 700;
+      background: rgba(255,255,255,.05); border: 1.5px solid var(--lk-line);
+      border-radius: var(--lk-r-md); color: var(--lk-ink); outline: none;
+    }
+    .ia-field:focus { border-color: var(--lk-violet); }
+    .ia-field[disabled] { opacity: .65; }
+
+    /* ─── З4: соедини пары ─── */
+    .mp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .mp-col-label {
+      font-family: var(--lk-mono); font-size: 10px; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--lk-muted); margin-bottom: 6px; text-align: center;
+    }
+    .mp-col { display: flex; flex-direction: column; gap: 7px; }
+    .mp-item {
+      position: relative;
+      min-height: 56px; padding: 10px 24px; display: flex; align-items: center; justify-content: center;
+      font-size: 19px; font-weight: 700; background: var(--lk-surface);
+      border: 2px solid var(--lk-line); border-radius: var(--lk-r-lg); cursor: pointer; transition: all .15s;
+    }
+    .mp-num {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      font-family: var(--lk-mono); font-size: 15px; font-weight: 800; color: var(--lk-violet); line-height: 1;
+    }
+    /* номера смотрят в центральный жёлоб: левый столбец — у правого края, правый — у левого */
+    .mp-col:first-child .mp-num { right: 7px; left: auto; }
+    .mp-col:last-child  .mp-num { left: 7px; right: auto; }
+    .mp-item:not(.is-locked):hover { border-color: var(--lk-indigo); }
+    .mp-item.mp-selected {
+      border-color: var(--lk-violet); background: rgba(168,85,247,.18);
+      box-shadow: 0 0 0 2px rgba(168,85,247,.35), 0 0 16px rgba(168,85,247,.55);
+    }
+    .mp-item.mp-pair-0 { border-color: #A855F7; background: rgba(168,85,247,.11); }
+    .mp-item.mp-pair-1 { border-color: #818CF8; background: rgba(129,140,248,.11); }
+    .mp-item.mp-pair-2 { border-color: #D946EF; background: rgba(217,70,239,.11); }
+    .mp-item.mp-pair-3 { border-color: #4F46E5; background: rgba(79,70,229,.11); }
+    .mp-item.is-correct { border-color: var(--lk-ok)  !important; background: rgba(52,211,153,.14)  !important; }
+    .mp-item.is-wrong   { border-color: var(--lk-bad) !important; background: rgba(244,63,94,.10) !important; }
+    .mp-item.is-locked { cursor: default; }
+
+    /* ─── З3: предскажи <1 =1 >1 ─── */
+    .pred-row {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 11px 13px; margin-bottom: 8px; background: var(--lk-surface);
+      border: 1.5px solid var(--lk-line); border-radius: var(--lk-r-lg); transition: border-color .2s;
+    }
+    .pred-expr { flex: 0 0 auto; min-width: 96px; text-align: left; font-size: 19px; font-weight: 700; }
+    .pred-btns { display: flex; gap: 6px; flex: 1; }
+    .pred-btn {
+      flex: 1; padding: 8px 4px; font-size: 13px; font-weight: 700; font-family: var(--lk-mono);
+      letter-spacing: .03em; border: 1.5px solid var(--lk-line); border-radius: var(--lk-r-md);
+      background: transparent; color: var(--lk-muted); cursor: pointer; transition: all .15s;
+    }
+    .pred-btn:not([disabled]):hover { border-color: var(--lk-indigo); color: var(--lk-ink); }
+    .pred-btn.selected { border-color: var(--lk-violet); color: var(--lk-ink); background: rgba(168,85,247,.12); }
+    .pred-btn.is-correct { border-color: var(--lk-ok)  !important; background: rgba(52,211,153,.14) !important; color: var(--lk-ok)  !important; }
+    .pred-btn.is-wrong   { border-color: var(--lk-bad) !important; background: rgba(244,63,94,.10) !important; color: var(--lk-bad) !important; }
+    .pred-btn[disabled] { cursor: default; }
+
+    /* ─── З7: найди ошибку (два решения) ─── */
+    .fe-sub { margin-bottom: 18px; }
+    .fe-name {
+      font-family: var(--lk-mono); font-size: 12px; font-weight: 700; letter-spacing: .06em;
+      color: var(--lk-violet); margin-bottom: 8px;
+    }
+    .shown-work {
+      padding: 13px 15px; margin-bottom: 12px; background: rgba(255,255,255,.04);
+      border: 1px solid var(--lk-line); border-radius: var(--lk-r-xl);
+      font-size: 15px; line-height: 1.6; font-style: italic;
+    }
+
+    /* ─── Экран итогов (обзорный, скриншот-готовый) ─── */
+    #final-screen { display: none; margin-top: 6px; }
+    #final-screen.show { display: block; animation: lk-in .5s ease; }
+    .fin-tier { font-size: 17px; font-weight: 800; margin-bottom: 6px; text-align: center; }
+    .fin-theme { font-size: 13px; font-family: var(--lk-mono); color: var(--lk-muted); text-align: center; margin-bottom: 4px; }
+    .fin-score { text-align: center; margin: 10px 0 18px; }
+    .fin-score b { color: var(--lk-violet); font-size: 30px; font-weight: 900; }
+    .fin-score span { color: var(--lk-muted); font-family: var(--lk-mono); font-size: 14px; }
+
+    .rev-item {
+      border: 1.5px solid var(--lk-line); border-radius: var(--lk-r-lg);
+      margin-bottom: 8px; overflow: hidden; background: var(--lk-surface);
+    }
+    .rev-item.ok  { border-color: rgba(52,211,153,.35); }
+    .rev-item.bad { border-color: rgba(244,63,94,.40); }
+    .rev-head {
+      display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+      font-size: 14px; cursor: default;
+    }
+    .rev-item.bad .rev-head { cursor: pointer; }
+    .rev-mark { font-size: 16px; flex: 0 0 auto; }
+    .rev-title { flex: 1; font-weight: 700; }
+    .rev-diff { font-size: 15px; }
+    .rev-toggle { font-family: var(--lk-mono); font-size: 11px; color: var(--lk-muted); }
+    .rev-item.ok .rev-toggle { display: none; }
+    .rev-body { display: none; padding: 0 14px 14px; font-size: 13.5px; line-height: 1.6; }
+    .rev-item.open .rev-body { display: block; }
+    .rev-wrong-line {
+      padding: 9px 12px; margin-bottom: 10px; border-radius: var(--lk-r-md);
+      background: rgba(244,63,94,.08); border: 1px solid rgba(244,63,94,.2);
+      font-family: var(--lk-mono); font-size: 13px; line-height: 1.7;
+    }
+    .rev-razbor-label {
+      font-family: var(--lk-mono); font-size: 10px; font-weight: 700; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--lk-indigo); margin-bottom: 7px;
+    }
+    .rev-p { margin: 0 0 8px; } .rev-p:last-child { margin: 0; }
+
+    .fin-card { text-align: center; padding: 22px 20px; margin-top: 18px; }
+    .fin-unlock { font-size: 20px; font-weight: 900; margin-bottom: 12px; }
+    .fin-tease { font-size: 14.5px; line-height: 1.65; color: var(--lk-muted); margin-bottom: 16px; }
+    .fin-counter { font-family: var(--lk-mono); font-size: 13px; color: var(--lk-muted); }
+    .fin-counter b { color: var(--lk-violet); font-size: 19px; }
+    .send-btn { margin-top: 20px; width: 100%; }
+    .send-note {
+      font-size: 12px; color: var(--lk-muted); text-align: center; margin-top: 10px; line-height: 1.5;
+    }
+
+    @media (max-width: 380px) {
+      .mp-item { font-size: 16px; min-height: 48px; }
+      .pred-expr { min-width: 78px; font-size: 16px; }
+      .ia-field { width: 92px; }
+    }
+  </style>
+</head>
+<body class="lk-page">
+
+  <!-- Слой микро-дофамин вспышек фона-ромбов (под контентом, над фоном) -->
+  <div class="lk-flash lk-flash-correct" id="lk-fx-ok"></div>
+  <div class="lk-flash lk-flash-wrong"   id="lk-fx-bad"></div>
+
+  <!-- Звуки бум-эффекта (по URL из бренд-кита) -->
+  <audio id="snd-win"   src="https://dmitrydruzhkovv-arch.github.io/di-brand-kit/sounds/win.mp3?v=2"     preload="auto"></audio>
+  <audio id="snd-lose"  src="https://dmitrydruzhkovv-arch.github.io/di-brand-kit/sounds/lose_v2.mp3?v=2" preload="auto"></audio>
+  <audio id="snd-final" src="https://dmitrydruzhkovv-arch.github.io/di-brand-kit/sounds/final.mp3"   preload="auto"></audio>
+
+  <header class="hw-header" id="hw-header" hidden>
+    <div class="hw-header-inner">
+      <span class="hw-prog-label" id="prog-label">1 из 8</span>
+      <div class="lk-progress"><div class="lk-fill" id="prog-fill" style="width:0%"></div></div>
+      <span class="hw-combo" id="combo"></span>
+    </div>
+  </header>
+
+  <div class="lk-app" style="padding-top:22px">
+
+    <!-- Старт-обложка -->
+    <div id="cover" class="cover">
+      <div class="lk-kicker" id="cv-kicker"></div>
+      <h1 class="lk-h1 lk-glow" id="cv-title"></h1>
+      <p class="lk-lead" id="cv-lead"></p>
+      <div class="cover-meta" id="cv-meta"></div>
+      <button class="lk-btn cover-btn" id="cv-start">Поехали 🚀</button>
+      <div class="lk-sign" style="margin-top:24px">
+        <span class="lk-badge lk-badge-l">Λ</span>
+        <span class="lk-badge lk-badge-di">Di</span>
+      </div>
+    </div>
+
+    <!-- Одна карточка задания на экран -->
+    <div id="screen" hidden></div>
+
+    <!-- Обзорный экран итогов -->
+    <div id="final-screen"></div>
+
+  </div>
+
+  <script src="app.js?v=6"></script>
+</body>
+</html>
