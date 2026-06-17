@@ -69,7 +69,8 @@ let combo = 0;
 let firstTryCount = 0;
 let finished = false;
 let reported = false;   // #38 — отчёт уже отправлен (живёт и в localStorage)
-let devMode = false;    // тест-режим Ди (?goto=N) — прогресс НЕ сохраняем
+let devMode = false;    // тест-режим Ди (?g=N / ?goto=N) — прогресс НЕ сохраняем
+let allowSend = false;  // ?send=1 — разрешить отчёт даже в тест-режиме (проверка #38)
 const results = []; // по заданию: { label, diff, correct, wrong:[строки], feedback }
 
 // ── СОХРАНЕНИЕ ПРОГРЕССА (localStorage) ──────────────────────────────────────
@@ -571,7 +572,7 @@ function hwToken() {
 }
 
 function reportResults(score, total) {
-  if (reported || devMode) return;   // тест-режим Ди не шлёт отчёт
+  if (reported || (devMode && !allowSend)) return;   // тест-режим не шлёт (если нет ?send=1)
   const token = hwToken();
   if (!token) return;                 // нет ника — это превью/без привязки
   reported = true;
@@ -724,7 +725,8 @@ function init(data) {
 
   const qs = new URLSearchParams(location.search);
   if (qs.get('reset') === '1') clearProgress();          // начать заново
-  const g = parseInt(qs.get('goto'), 10);
+  allowSend = qs.get('send') === '1';                    // тест отчёта с прыжка
+  const g = parseInt(qs.get('g') || qs.get('goto'), 10); // ?g=8 (коротко) или ?goto=8
   if (!isNaN(g)) { devGoto(g); return; }                 // тест-режим Ди
   restoreProgress();                                     // продолжить с места
 }
