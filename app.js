@@ -571,7 +571,7 @@ function hwToken() {
 }
 
 function reportResults(score, total) {
-  if (reported) return;
+  if (reported || devMode) return;   // тест-режим Ди не шлёт отчёт
   const token = hwToken();
   if (!token) return;                 // нет ника — это превью/без привязки
   reported = true;
