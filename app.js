@@ -533,6 +533,35 @@ function updateCombo() {
   else { el.classList.remove('show'); }
 }
 
+// ── ОТЧЁТ РЕПЕТИТОРУ (#38) — авто-отправка итогов на сервер ──────────────────
+// Ученика опознаём ником из ссылки (?u=misha) — ПДн на провод не уходят.
+// Сервер (RF, Caddy+HTTPS) шлёт итоги Ди в ВК и пишет в БД. Без ника — не шлём.
+const HW_ENDPOINT = 'https://194-87-110-53.nip.io/hw-result';
+let reported = false;
+
+function hwToken() {
+  const p = new URLSearchParams(location.search);
+  return (p.get('u') || p.get('id') || '').slice(0, 40);
+}
+
+function reportResults(score, total) {
+  if (reported) return;
+  const token = hwToken();
+  if (!token) return;                 // нет ника — это превью/без привязки
+  reported = true;
+  const errors = [];
+  results.forEach((r, i) => { if (r && !r.correct) errors.push(`№${i + 1} ${r.label}`); });
+  const hw = `${DATA.meta.kicker} — ${DATA.meta.title}`;
+  try {
+    fetch(HW_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, hw, score, total, errors }),
+      keepalive: true
+    }).catch(() => {});
+  } catch (e) { /* офлайн — не мешаем ученику */ }
+}
+
 // ── ЭКРАН ИТОГОВ (обзорный, скриншот-готовый) ───────────────────────────────
 
 function showFinal() {
@@ -541,6 +570,7 @@ function showFinal() {
   playSound('snd-final');
 
   const total = DATA.tasks.length;
+  reportResults(firstTryCount, total);   // #38 — авто-отчёт репетитору
   const tier = firstTryCount === total ? '🏆 Идеально — ни одной осечки!'
              : firstTryCount >= total - 2 ? '💪 Крепко держишь тему!'
              : '🔁 Загляни в разборы ошибок — и прорешай ещё разок.';
