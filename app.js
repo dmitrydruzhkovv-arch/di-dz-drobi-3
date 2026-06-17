@@ -67,7 +67,33 @@ let DATA = null;
 let idx = 0;
 let combo = 0;
 let firstTryCount = 0;
+let finished = false;
+let reported = false;   // #38 — отчёт уже отправлен (живёт и в localStorage)
+let devMode = false;    // тест-режим Ди (?goto=N) — прогресс НЕ сохраняем
 const results = []; // по заданию: { label, diff, correct, wrong:[строки], feedback }
+
+// ── СОХРАНЕНИЕ ПРОГРЕССА (localStorage) ──────────────────────────────────────
+// Refresh / случайное закрытие вкладки не сбрасывает ученика на старт.
+// Инвариант: в начале задачи idx === results.length → позицию восстанавливаем
+// как «следующая нерешённая», без риска двойного зачёта.
+const HW_ID = 'dz_drobi_urok3';
+function progKey() {
+  const u = (new URLSearchParams(location.search).get('u') || '').slice(0, 40);
+  return `hwprog:${HW_ID}:${u}`;
+}
+function saveProgress() {
+  if (devMode) return;
+  try {
+    localStorage.setItem(progKey(), JSON.stringify({
+      v: 1, results, firstTryCount, combo, finished, reported
+    }));
+  } catch (e) { /* приватный режим — просто не сохраняем */ }
+}
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(progKey()) || 'null'); }
+  catch (e) { return null; }
+}
+function clearProgress() { try { localStorage.removeItem(progKey()); } catch (e) {} }
 
 // ── МЕХАНИКА 1: ОТМЕТЬ ВСЕ ВЕРНЫЕ (чекбоксы) ────────────────────────────────
 
@@ -522,6 +548,7 @@ function render() {
       label: task.label, diff: task.difficulty,
       correct: res.correct, wrong: res.wrong || [], feedback: task.feedback
     };
+    saveProgress();   // прогресс не теряется при refresh
   });
 
   nextBtn.addEventListener('click', () => { idx++; render(); });
@@ -537,7 +564,6 @@ function updateCombo() {
 // Ученика опознаём ником из ссылки (?u=misha) — ПДн на провод не уходят.
 // Сервер (RF, Caddy+HTTPS) шлёт итоги Ди в ВК и пишет в БД. Без ника — не шлём.
 const HW_ENDPOINT = 'https://194-87-110-53.nip.io/hw-result';
-let reported = false;
 
 function hwToken() {
   const p = new URLSearchParams(location.search);
@@ -549,6 +575,7 @@ function reportResults(score, total) {
   const token = hwToken();
   if (!token) return;                 // нет ника — это превью/без привязки
   reported = true;
+  saveProgress();                     // чтобы refresh на итогах не слал повторно
   const errors = [];
   results.forEach((r, i) => { if (r && !r.correct) errors.push(`№${i + 1} ${r.label}`); });
   const hw = `${DATA.meta.kicker} — ${DATA.meta.title}`;
@@ -570,7 +597,9 @@ function showFinal() {
   playSound('snd-final');
 
   const total = DATA.tasks.length;
+  finished = true;
   reportResults(firstTryCount, total);   // #38 — авто-отчёт репетитору
+  saveProgress();                        // refresh на итогах вернёт сюда же
   const tier = firstTryCount === total ? '🏆 Идеально — ни одной осечки!'
              : firstTryCount >= total - 2 ? '💪 Крепко держишь тему!'
              : '🔁 Загляни в разборы ошибок — и прорешай ещё разок.';
@@ -634,6 +663,56 @@ function showFinal() {
 
 // ── ИНИЦИАЛИЗАЦИЯ ─────────────────────────────────────────────────────────────
 
+function startHw() {
+  document.getElementById('cover').hidden = true;
+  document.getElementById('hw-header').hidden = false;
+  document.getElementById('screen').hidden = false;
+  // победная мелодия на старте + «разбудить» остальные звуки (для мобильных)
+  playSound('snd-win');
+  ['snd-lose', 'snd-final'].forEach(id => {
+    const a = document.getElementById(id);
+    if (a) { a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {}); }
+  });
+  render();
+}
+
+// Возврат к незавершённой/завершённой работе (refresh, повторный заход с того же ника).
+function restoreProgress() {
+  const saved = loadProgress();
+  if (!saved || !Array.isArray(saved.results) || !saved.results.length) return false;
+  saved.results.forEach(r => results.push(r));
+  firstTryCount = (typeof saved.firstTryCount === 'number')
+    ? saved.firstTryCount : results.filter(r => r && r.correct).length;
+  combo = saved.combo || 0;
+  reported = !!saved.reported;
+  finished = !!saved.finished;
+  idx = results.length;                 // следующая нерешённая
+  document.getElementById('cover').hidden = true;
+  document.getElementById('hw-header').hidden = false;
+  document.getElementById('screen').hidden = false;
+  if (finished || idx >= DATA.tasks.length) showFinal();
+  else render();
+  return true;
+}
+
+// ТЕСТ-РЕЖИМ Ди: ?goto=N — прыжок на задачу N (1..total), предыдущие
+// засчитываются автоматически. Прогресс НЕ сохраняем (не мешает ученику).
+function devGoto(n) {
+  devMode = true;
+  const total = DATA.tasks.length;
+  const target = Math.max(1, Math.min(total, n)) - 1;   // 0-based
+  for (let i = 0; i < target; i++) {
+    const t = DATA.tasks[i];
+    results[i] = { label: t.label, diff: t.difficulty, correct: true, wrong: [], feedback: t.feedback };
+  }
+  firstTryCount = target;
+  idx = target;
+  document.getElementById('cover').hidden = true;
+  document.getElementById('hw-header').hidden = false;
+  document.getElementById('screen').hidden = false;
+  render();
+}
+
 function init(data) {
   DATA = data;
   document.getElementById('cv-kicker').textContent = data.meta.kicker;
@@ -641,19 +720,13 @@ function init(data) {
   document.getElementById('cv-lead').textContent = data.meta.cover_lead || data.meta.subtitle;
   document.getElementById('cv-meta').textContent =
     `${data.tasks.length} заданий · ~${data.meta.minutes || 12} мин`;
+  document.getElementById('cv-start').addEventListener('click', startHw);
 
-  document.getElementById('cv-start').addEventListener('click', () => {
-    document.getElementById('cover').hidden = true;
-    document.getElementById('hw-header').hidden = false;
-    document.getElementById('screen').hidden = false;
-    // победная мелодия на старте + «разбудить» остальные звуки (для мобильных)
-    playSound('snd-win');
-    ['snd-lose', 'snd-final'].forEach(id => {
-      const a = document.getElementById(id);
-      if (a) { a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {}); }
-    });
-    render();
-  });
+  const qs = new URLSearchParams(location.search);
+  if (qs.get('reset') === '1') clearProgress();          // начать заново
+  const g = parseInt(qs.get('goto'), 10);
+  if (!isNaN(g)) { devGoto(g); return; }                 // тест-режим Ди
+  restoreProgress();                                     // продолжить с места
 }
 
 fetch('data.json')
