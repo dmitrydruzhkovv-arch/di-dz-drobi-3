@@ -506,11 +506,14 @@ function render() {
 
   const isLast = idx === DATA.tasks.length - 1;
   const hasHint = !!(task.hint && String(task.hint).trim());
+  // шапка: цветная плашка с номером + тема (без слова «Задание»)
+  const num = idx + 1;
+  const subtitle = String(task.label || '').replace(/^Задание\s*\d+\s*·?\s*/u, '').trim();
   screen.innerHTML = `
     <div class="task-card lk-card lk-screen" id="card-${task.id}">
       <div class="task-head">
-        <div class="task-label-wrap"><span class="task-label">${task.label}</span></div>
-        ${hasHint ? `<button class="lk-hint-btn" id="hint-btn-${task.id}" type="button" aria-expanded="false" aria-controls="hint-${task.id}" aria-label="Подсказка от Леммы">Λ</button>` : ''}
+        <div class="task-label-wrap"><span class="lk-tasknum">${num}</span>${subtitle ? `<span class="task-label">${subtitle}</span>` : ''}</div>
+        ${hasHint ? `<button class="lk-hint-btn lk-hint-btn--alive" id="hint-btn-${task.id}" type="button" aria-expanded="false" aria-controls="hint-${task.id}" aria-label="Подсказка от Леммы">Λ</button>` : ''}
       </div>
       ${hasHint ? `<div class="lk-hint-panel" id="hint-${task.id}"><div class="lk-hint-inner"><div class="lk-hint-body"><span class="lk-hint-tag">Λ Подсказка</span>${fmtInline(task.hint)}</div></div></div>` : ''}
       <p class="task-intro">${fmtInline(task.intro)}</p>
@@ -547,15 +550,13 @@ function render() {
       checkBtn.addEventListener('animationend', () => checkBtn.classList.remove('shake'), { once: true });
       return;
     }
-    // бум-эффект: фон-вспышка ромбов + реакция самой карточки
+    // бум-эффект: фон-вспышка ромбов + реакция самой карточки.
+    // Класс НЕ снимаем: карточка отвечается один раз, дальше рендерится новый
+    // элемент. Если снять на animationend — имя анимации откатится на lk-in
+    // (вход .lk-screen) и карточка «проявится из прозрачности» заново.
     boom(res.correct);
     card.classList.remove('lk-card-win', 'lk-card-shake'); void card.offsetWidth;
     card.classList.add(res.correct ? 'lk-card-win' : 'lk-card-shake');
-    card.addEventListener('animationend', function clr(e) {
-      if (e.target !== card) return;   // игнор анимаций дочерних (разбор lk-in и т.п.)
-      card.classList.remove('lk-card-win', 'lk-card-shake');
-      card.removeEventListener('animationend', clr);
-    });
     // разбор + блокировка
     document.getElementById(`fb-${task.id}`).classList.add('show');
     checkBtn.disabled = true; checkBtn.hidden = true;
