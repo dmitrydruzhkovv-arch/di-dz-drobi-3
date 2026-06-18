@@ -505,13 +505,14 @@ function render() {
   document.getElementById('prog-fill').style.width = `${(idx / DATA.tasks.length) * 100}%`;
 
   const isLast = idx === DATA.tasks.length - 1;
+  const hasHint = !!(task.hint && String(task.hint).trim());
   screen.innerHTML = `
     <div class="task-card lk-card lk-screen" id="card-${task.id}">
       <div class="task-head">
         <div class="task-label-wrap"><span class="task-label">${task.label}</span></div>
-        <span class="task-diff">${task.difficulty}</span>
+        ${hasHint ? `<button class="lk-hint-btn" id="hint-btn-${task.id}" type="button" aria-expanded="false" aria-controls="hint-${task.id}" aria-label="Подсказка от Леммы">Λ</button>` : ''}
       </div>
-      <span class="task-block">${task.block}</span>
+      ${hasHint ? `<div class="lk-hint-panel" id="hint-${task.id}"><div class="lk-hint-inner"><div class="lk-hint-body"><span class="lk-hint-tag">Λ Подсказка</span>${fmtInline(task.hint)}</div></div></div>` : ''}
       <p class="task-intro">${fmtInline(task.intro)}</p>
       <div class="task-body">${buildBody(task)}</div>
       <div class="task-feedback" id="fb-${task.id}">
@@ -528,6 +529,17 @@ function render() {
   const checkBtn = document.getElementById(`btn-${task.id}`);
   const nextBtn = document.getElementById(`next-${task.id}`);
 
+  // кнопка-подсказка Леммы (Λ): тап → раскрыть/свернуть панель подсказки
+  const hintBtn = document.getElementById(`hint-btn-${task.id}`);
+  if (hintBtn) {
+    const hintPanel = document.getElementById(`hint-${task.id}`);
+    hintBtn.addEventListener('click', () => {
+      const open = hintPanel.classList.toggle('is-open');
+      hintBtn.classList.toggle('is-open', open);
+      hintBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  }
+
   checkBtn.addEventListener('click', () => {
     const res = checker.check();
     if (!res || !res.ok) {
@@ -535,8 +547,15 @@ function render() {
       checkBtn.addEventListener('animationend', () => checkBtn.classList.remove('shake'), { once: true });
       return;
     }
-    // бум-эффект
+    // бум-эффект: фон-вспышка ромбов + реакция самой карточки
     boom(res.correct);
+    card.classList.remove('lk-card-win', 'lk-card-shake'); void card.offsetWidth;
+    card.classList.add(res.correct ? 'lk-card-win' : 'lk-card-shake');
+    card.addEventListener('animationend', function clr(e) {
+      if (e.target !== card) return;   // игнор анимаций дочерних (разбор lk-in и т.п.)
+      card.classList.remove('lk-card-win', 'lk-card-shake');
+      card.removeEventListener('animationend', clr);
+    });
     // разбор + блокировка
     document.getElementById(`fb-${task.id}`).classList.add('show');
     checkBtn.disabled = true; checkBtn.hidden = true;
@@ -584,7 +603,7 @@ function reportResults(score, total) {
     fetch(HW_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, hw, score, total, errors }),
+      body: JSON.stringify({ token, hw, hw_id: HW_ID, score, total, errors }),
       keepalive: true
     }).catch(() => {});
   } catch (e) { /* офлайн — не мешаем ученику */ }
