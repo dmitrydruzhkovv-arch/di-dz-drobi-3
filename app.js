@@ -663,7 +663,7 @@ function showFinal() {
 
     <div class="lk-sign" style="margin-top:22px">
       <span class="lk-badge lk-badge-l">Λ</span>
-      <span class="lk-badge lk-badge-di">Di</span>
+      <span class="lk-badge lk-badge-d"><span>D<span class="lk-dot">.</span></span></span>
     </div>
     <div style="height:32px"></div>`;
   el.classList.add('show');
